@@ -1,0 +1,290 @@
+#include "mainwindow.h"
+#include "./ui_mainwindow.h"
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+
+    ui->cardsLoaded->setColumnCount(3);
+    ui->cardsLoaded->setHorizontalHeaderLabels({"Id", "Name", "Count"});
+
+
+    connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::generateCardsFromTextbox);
+    connect(ui->generateCardsButton, &QPushButton::clicked, this, &MainWindow::generateCardSheets);
+    connect(ui->removeSelectedCardButton, &QPushButton::clicked, this, &MainWindow::removeCard);
+    connect(ui->loadFromPngButton, &QPushButton::clicked, this, &MainWindow::onLoadFromFilesButtonClick);
+    connect(ui->addDamageButton, &QPushButton::clicked, this, &MainWindow::onAddDamageStumpButtonClick);
+    connect(ui->addSystemButton, &QPushButton::clicked, this, &MainWindow::onAddSystemStumpButtonClick);
+    connect(ui->templateButton, &QPushButton::clicked, this, &MainWindow::onAddCardStumpButtonClick);
+    connect(ui->setBgImageButton, &QPushButton::clicked, this, &MainWindow::onSetBgImageButtonClick);
+
+    connect(ui->cardsLoaded, &QTableWidget::cellClicked, this, &MainWindow::onTableCellClick);
+
+    connect(ui->currentCardData, &QPlainTextEdit::textChanged,this, &MainWindow::onCurrentCardDataEdited);
+
+}
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+
+void MainWindow::generateCardsFromTextbox()
+{
+    QString inpData = ui->plainTextEdit->toPlainText();
+
+    QStringList individualData = inpData.split("___");
+
+    QProgressDialog pr_d = QProgressDialog("Parcing data...", "Cancel", 0 , individualData.size(), this);
+    pr_d.setWindowModality(Qt::WindowModal);
+
+    int progress = 0;
+    for (auto& strData : individualData){
+        if (strData.size() == 0)
+            continue;
+
+        if (strData.at(0) == '\n')
+            strData = strData.mid(1);
+
+        if (m_textProcessed.find(strData) != m_textProcessed.end())
+            continue;
+
+        UnitCard* card = new UnitCard(this);
+        card->parceFromText(strData);
+        card->setBackgroundImage(m_bgImage);
+
+        m_textProcessed.insert(strData);
+
+        connect(card, &UnitCard::requestUpdateImage, this, &MainWindow::onCurrentCardTextChanged);
+
+        //ui->cardsLayout->addWidget(card, 1,1);
+        int index = ++generatedIndex;
+        card->setIndex(index);
+        m_generatedCards[index] = card;
+
+        ui->cardsLoaded->setRowCount(m_generatedCards.size());
+
+        QLabel *indexLabel = new QLabel(QString::number(index),ui->cardsLoaded );
+        indexLabel->setProperty("index", index);
+        ui->cardsLoaded->setCellWidget(m_generatedCards.size() - 1, 0, indexLabel);
+
+        QLabel *nameLabel = new QLabel(card->getName(),ui->cardsLoaded );
+        ui->cardsLoaded->setCellWidget(m_generatedCards.size() - 1, 1, nameLabel);
+
+        QSpinBox *countSpinBox = new QSpinBox(ui->cardsLoaded );
+        countSpinBox->setValue(card->getCount());
+        ui->cardsLoaded->setCellWidget(m_generatedCards.size() - 1, 2, countSpinBox);
+        progress++;
+        pr_d.setValue(progress);
+
+        if (pr_d.wasCanceled())
+            break;
+        //card->grab().save("test.png");
+    }
+    //pr_d->deleteLater();
+}
+
+void MainWindow::generateCardSheets()
+{
+    int totalCardCount = 0;
+    for (const auto& card : m_generatedCards){
+        totalCardCount += card.second->getCount();
+    }
+    QProgressDialog pr_d = QProgressDialog("Generating cards...", "Cancel", 0 , totalCardCount, this);
+    pr_d.setWindowModality(Qt::WindowModal);
+
+    totalCardCount = 0;
+    QImage currentPage(318 * 3, 441 * 3, QImage::Format::Format_RGBA8888);
+    QPainter localPainter(&currentPage);
+    localPainter.fillRect(0, 0, 318 * 3, 441 * 3, Qt::GlobalColor::white);
+    int currentPageCount = 0;
+    int currentCardCount = 0;
+    QString cardText;
+    for (int i = 0; i < ui->cardsLoaded->rowCount(); i++){
+        int index = ui->cardsLoaded->cellWidget(i, 0)->property("index").toInt();
+        int count = dynamic_cast<QSpinBox*>( ui->cardsLoaded->cellWidget(i, 2))->value();
+        m_generatedCards.at(index)->setCount(count);
+        for (int j = 0; j < count; j++){
+            if (m_generatedCards.find(index) != m_generatedCards.end()){
+                QImage currentCard = m_generatedCards.at(index)->grab().toImage();
+                localPainter.drawImage(QPoint(318 * (currentCardCount % 3), 441 * (currentCardCount / 3)), currentCard);
+                cardText += m_generatedCards.at(index)->getText();
+                cardText += "\n___\n";
+            }
+            currentCardCount++;
+            totalCardCount++;
+            pr_d.setValue(totalCardCount);
+            if (currentCardCount == 9){
+                currentPage.setText("cardText", cardText);
+                currentPage.save(QString("page_%1.png").arg(currentPageCount));
+                currentPageCount++;
+
+                //currentPage = QImage(318 * 3, 441 * 3, QImage::Format::Format_RGBA8888);
+                localPainter.fillRect(0, 0, 318 * 3, 441 * 3, Qt::GlobalColor::white);
+                currentCardCount = 0;
+                cardText.clear();
+            }
+        }
+    }
+
+    if (currentCardCount > 0){
+        currentPage.setText("cardText", cardText);
+        cardText.clear();
+        currentPage.save(QString("page_%1.png").arg(currentPageCount));
+    }
+}
+
+void MainWindow::removeCard()
+{
+    auto list = ui->cardsLoaded->selectedItems().size();
+    int row = ui->cardsLoaded->currentRow();
+    if (row > -1){
+        std::set<int> removeIndex;
+        std::set<int> removeRows;
+        int index = ui->cardsLoaded->cellWidget(row, 0)->property("index").toInt();
+        removeIndex.insert(index);
+        removeRows.insert(row);
+
+        if (removeRows.size() > 0) {
+            std::vector<int> sortedRows;
+            for (const int row : removeRows)
+                sortedRows.push_back(row);
+
+            std::sort(sortedRows.begin(), sortedRows.end());
+
+            for (int i = sortedRows.size() - 1; i >= 0; i--){
+                ui->cardsLoaded->removeRow(sortedRows.at(i));
+            }
+        }
+
+        if (removeIndex.size() > 0) {
+            for (const int ind : removeIndex)
+                m_generatedCards.erase(ind);
+        }
+
+        ui->cardDisplayLabel->clear();
+        ui->currentCardData->clear();
+        m_currentCard = nullptr;
+    }
+}
+
+void MainWindow::onTableCellClick(int _row, int _column)
+{
+    if (ui->cardsLoaded->cellWidget(_row, 0) != nullptr){
+        int index = ui->cardsLoaded->cellWidget(_row, 0)->property("index").toInt();
+
+        if (m_generatedCards.find(index) != m_generatedCards.end()){
+            m_currentCard = m_generatedCards.at(index);
+            //m_currentCard->setVisible(true);
+            ui->cardDisplayLabel->setPixmap(m_currentCard->grab());
+            ui->currentCardData->setPlainText(m_currentCard->getText());
+        }
+    }
+}
+
+void MainWindow::onCurrentCardDataEdited()
+{
+    QString curData = ui->currentCardData->toPlainText();
+    if (curData.size() > 0 && m_currentCard != nullptr){
+        m_currentCard->parceFromText(curData);
+
+        ui->cardDisplayLabel->clear();
+        ui->cardDisplayLabel->setPixmap(m_currentCard->grab());
+        //ui->currentCardData->setPlainText(m_currentCard->getText());
+    }
+}
+
+void MainWindow::onCurrentCardTextChanged()
+{
+    if (m_currentCard){
+        ui->currentCardData->setPlainText(m_currentCard->getText());
+        onCurrentCardDataEdited();
+    }
+}
+
+void MainWindow::onAddCardStumpButtonClick()
+{
+    QString strData = "Template Unit - 0 pts\n";
+    strData += "Infantry – X Bases\n";
+    strData += "Cmd -: Def 3+: Save 1d8: Move 2DU\n";
+    strData += "Tags:\n";
+    UnitCard* card = new UnitCard(this);
+    card->parceFromText(strData);
+    card->setBackgroundImage(m_bgImage);
+
+    connect(card, &UnitCard::requestUpdateImage, this, &MainWindow::onCurrentCardTextChanged);
+
+    //ui->cardsLayout->addWidget(card, 1,1);
+    int index = ++generatedIndex;
+    card->setIndex(index);
+    m_generatedCards[index] = card;
+
+    ui->cardsLoaded->setRowCount(m_generatedCards.size());
+
+    QLabel *indexLabel = new QLabel(QString::number(index),ui->cardsLoaded );
+    indexLabel->setProperty("index", index);
+    ui->cardsLoaded->setCellWidget(m_generatedCards.size() - 1, 0, indexLabel);
+
+    QLabel *nameLabel = new QLabel(card->getName(),ui->cardsLoaded );
+    ui->cardsLoaded->setCellWidget(m_generatedCards.size() - 1, 1, nameLabel);
+
+    QSpinBox *countSpinBox = new QSpinBox(ui->cardsLoaded );
+    countSpinBox->setValue(1);
+    ui->cardsLoaded->setCellWidget(m_generatedCards.size() - 1, 2, countSpinBox);
+
+    onTableCellClick(m_generatedCards.size(), 0);
+}
+
+void MainWindow::onAddSystemStumpButtonClick()
+{
+    if (m_currentCard)
+        m_currentCard->addSystemStump();
+}
+
+void MainWindow::onAddDamageStumpButtonClick()
+{
+    if (m_currentCard)
+        m_currentCard->addDamageStump();
+}
+
+void MainWindow::onLoadFromFilesButtonClick()
+{
+    QList<QString> files = QFileDialog::getOpenFileNames(this, "Select cards/sheets to load", "", "PNG images (*.png)");
+    QString totalText;
+    if (files.size() > 0){
+        int curProgres = 0;
+        QProgressDialog pr_d = QProgressDialog("Generating cards...", "Cancel", 0 , files.size(), this);
+        pr_d.setWindowModality(Qt::WindowModal);
+        ui->cardsLoaded->clear();
+        for (auto& card : m_generatedCards)
+            card.second->deleteLater();
+        m_generatedCards.clear();
+
+        for (const auto& file_p : files){
+            QImage sheet = QImage(file_p);
+            if (!sheet.isNull()){
+                QString text = sheet.text("cardText");
+                totalText.append(text);
+            }
+            curProgres++;
+            pr_d.setValue(curProgres);
+        }
+        ui->plainTextEdit->setPlainText(totalText);
+        generateCardsFromTextbox();
+    }
+}
+
+void MainWindow::onSetBgImageButtonClick()
+{
+    QString imgPath = QFileDialog::getOpenFileName(this, "Select background image", "", "PNG images (*.png);;JPG images (*.jpg);;JPEG images (*.jpeg);;BMP images (*.bmp)");
+
+    if (imgPath.size() > 0){
+        m_bgImage = QImage(imgPath);
+        for (auto& card : m_generatedCards){
+            card.second->setBackgroundImage(m_bgImage);
+        }
+        onCurrentCardTextChanged();
+    }
+}
