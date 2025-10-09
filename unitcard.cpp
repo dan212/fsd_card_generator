@@ -222,6 +222,8 @@ void UnitCard::parceFromText(QString _data)
             abl->ensureTextVisible();
         }
     }
+    setAdBackground(m_ADBGColor);
+    setSystemBackground(m_systemBGColor);
 }
 
 void UnitCard::setCount(int _count)
@@ -275,5 +277,29 @@ void UnitCard::setBackgroundImage(QImage &_bg)
     QPalette pal;
     pal.setBrush(QPalette::Window, bg_pix);
     setPalette(pal);
+}
+
+void UnitCard::setCardBackground(const QColor &_color)
+{
+    ui->mainDataFrame->setStyleSheet(QString("QFrame { background: transparent; background-color: %1 }").arg(_color.name(QColor::HexArgb)));
+    ui->damageWidget->setStyleSheet(QString("QFrame { background: transparent; background-color: %1 }").arg(_color.name(QColor::HexArgb)));
+    ui->miscText->setStyleSheet(QString("QLabel { background: transparent; background-color: %1 }").arg(_color.name(QColor::HexArgb)));
+    ui->tagsLabel->setStyleSheet(QString("QLabel { background: transparent; background-color: %1 }").arg(_color.name(QColor::HexArgb)));
+}
+
+void UnitCard::setAdBackground(const QColor &_color)
+{
+    m_ADBGColor = _color;
+    for (auto& sys : m_abilities){
+        sys->setAdBackground(_color);
+    }
+}
+
+void UnitCard::setSystemBackground(const QColor &_color)
+{
+    m_systemBGColor = _color;
+    for (auto& sys : m_abilities){
+        sys->setSystemBackground(_color);
+    }
 }
 

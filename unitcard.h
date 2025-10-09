@@ -5,6 +5,7 @@
 #include <QString>
 #include <QRegularExpression>
 #include <QPalette>
+#include <QColor>
 
 #include "ability_frame.h"
 
@@ -34,6 +35,9 @@ private:
     bool updateNeeded = false;
 
     QLabel *bg_image = nullptr;
+
+    QColor m_systemBGColor;
+    QColor m_ADBGColor;
 public:
     void parceFromText(QString _data);
     void setIndex(int _index) {index = _index;};
@@ -48,6 +52,10 @@ public:
     void addDamageStump();
 
     void setBackgroundImage(QImage& _bg);
+
+    void setCardBackground(const QColor& _color);
+    void setAdBackground(const QColor& _color);
+    void setSystemBackground(const QColor& _color);
 signals:
     void requestUpdateImage();
 };

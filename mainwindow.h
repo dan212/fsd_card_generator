@@ -6,6 +6,8 @@
 #include <QPainter>
 #include <QProgressDialog>
 #include <QFileDialog>
+#include <QColorDialog>
+#include <QColor>
 #include "unitcard.h"
 
 #include <set>
@@ -24,6 +26,12 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    void setCardBGColor(const QColor &newCardBGColor);
+
+    void setSystemBGColor(const QColor &newSystemBGColor);
+
+    void setADBGColor(const QColor &newADBGColor);
+
 private:
     Ui::MainWindow *ui;
     std::map<int, UnitCard*> m_generatedCards;
@@ -32,6 +40,12 @@ private:
     int generatedIndex = 0;
 
     QImage m_bgImage;
+
+    QColor m_cardBGColor;
+    QColor m_systemBGColor;
+    QColor m_ADBGColor;
+
+
 
 public slots:
     void generateCardsFromTextbox();
@@ -48,5 +62,9 @@ public slots:
 
     void onLoadFromFilesButtonClick();
     void onSetBgImageButtonClick();
+
+    void onPickCardBackground();
+    void onPickADBackground();
+    void onPickSystemBackground();
 };
 #endif // MAINWINDOW_H

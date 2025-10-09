@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QRegularExpression>
 #include <QFontMetricsF>
+#include <QColor>
 
 namespace Ui {
 class ability_frame;
@@ -25,6 +26,9 @@ public:
 
     bool makeFromString(QString _inp);
     void ensureTextVisible();
+
+    void setAdBackground(const QColor& _color);
+    void setSystemBackground(const QColor& _color);
 private:
     Ui::ability_frame *ui;
     std::vector<QLabel*> m_adLabels;

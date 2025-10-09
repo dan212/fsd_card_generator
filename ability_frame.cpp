@@ -123,3 +123,15 @@ void ability_frame::ensureTextVisible()
         ui->Descr->setText(descrText);
     }
 }
+
+void ability_frame::setAdBackground(const QColor& _color)
+{
+    for (auto& ad : m_adLabels){
+        ad->setStyleSheet(QString("QLabel { background: transparent; background-color: %1 }").arg(_color.name(QColor::HexArgb)));
+    }
+}
+
+void ability_frame::setSystemBackground(const QColor& _color)
+{
+    setStyleSheet(QString("QFrame { background: transparent; background-color: %1 }").arg(_color.name(QColor::HexArgb)));
+}

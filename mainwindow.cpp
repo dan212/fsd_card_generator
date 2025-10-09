@@ -20,15 +20,83 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->templateButton, &QPushButton::clicked, this, &MainWindow::onAddCardStumpButtonClick);
     connect(ui->setBgImageButton, &QPushButton::clicked, this, &MainWindow::onSetBgImageButtonClick);
 
+    connect(ui->pickADBackground, &QPushButton::clicked, this, &MainWindow::onPickADBackground);
+    connect(ui->pickCardBackground, &QPushButton::clicked, this, &MainWindow::onPickCardBackground);
+    connect(ui->pickSystemBackground, &QPushButton::clicked, this, &MainWindow::onPickSystemBackground);
+
     connect(ui->cardsLoaded, &QTableWidget::cellClicked, this, &MainWindow::onTableCellClick);
 
     connect(ui->currentCardData, &QPlainTextEdit::textChanged,this, &MainWindow::onCurrentCardDataEdited);
 
+    connect(ui->bgAlphaSpinBox, &QSpinBox::valueChanged, this, [=](){
+        setCardBGColor(m_cardBGColor);
+        setSystemBGColor(m_systemBGColor);
+        setADBGColor(m_ADBGColor);
+    });
+
+    m_cardBGColor = QColor::fromRgb(255,255,255,140);
+    m_systemBGColor = QColor::fromRgb(255,255,255,100);
+    m_ADBGColor = QColor::fromRgb(255,189,91,140);
+
+    QPixmap adPixmap = QPixmap(ui->adBgLabel->size());
+    adPixmap.fill(m_ADBGColor);
+    ui->adBgLabel->setPixmap(adPixmap);
+
+    QPixmap cardPixmap = QPixmap(ui->cardBgLabel->size());
+    cardPixmap.fill(m_cardBGColor);
+    ui->cardBgLabel->setPixmap(cardPixmap);
+
+    QPixmap systemPixmap = QPixmap(ui->systemBgLabel->size());
+    systemPixmap.fill(m_systemBGColor);
+    ui->systemBgLabel->setPixmap(systemPixmap);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::setCardBGColor(const QColor &newCardBGColor)
+{
+    m_cardBGColor = newCardBGColor;
+    m_cardBGColor.setAlpha(ui->bgAlphaSpinBox->value());
+    for (auto& card : m_generatedCards){
+        card.second->setCardBackground(m_cardBGColor);
+    }
+    onCurrentCardTextChanged();
+
+    QPixmap cardPixmap = QPixmap(ui->cardBgLabel->size());
+    cardPixmap.fill(m_cardBGColor);
+    ui->cardBgLabel->setPixmap(cardPixmap);
+
+}
+
+void MainWindow::setSystemBGColor(const QColor &newSystemBGColor)
+{
+    m_systemBGColor = newSystemBGColor;
+    m_systemBGColor.setAlpha(ui->bgAlphaSpinBox->value());
+    for (auto& card : m_generatedCards){
+        card.second->setSystemBackground(m_systemBGColor);
+    }
+    onCurrentCardTextChanged();
+
+    QPixmap systemPixmap = QPixmap(ui->systemBgLabel->size());
+    systemPixmap.fill(m_systemBGColor);
+    ui->systemBgLabel->setPixmap(systemPixmap);
+}
+
+void MainWindow::setADBGColor(const QColor &newADBGColor)
+{
+    m_ADBGColor = newADBGColor;
+    m_ADBGColor.setAlpha(ui->bgAlphaSpinBox->value());
+    for (auto& card : m_generatedCards){
+        card.second->setAdBackground(m_ADBGColor);
+    }
+    onCurrentCardTextChanged();
+
+    QPixmap adPixmap = QPixmap(ui->adBgLabel->size());
+    adPixmap.fill(m_ADBGColor);
+    ui->adBgLabel->setPixmap(adPixmap);
 }
 
 void MainWindow::generateCardsFromTextbox()
@@ -54,6 +122,9 @@ void MainWindow::generateCardsFromTextbox()
         UnitCard* card = new UnitCard(this);
         card->parceFromText(strData);
         card->setBackgroundImage(m_bgImage);
+        card->setCardBackground(m_cardBGColor);
+        card->setAdBackground(m_ADBGColor);
+        card->setSystemBackground(m_systemBGColor);
 
         m_textProcessed.insert(strData);
 
@@ -213,6 +284,9 @@ void MainWindow::onAddCardStumpButtonClick()
     UnitCard* card = new UnitCard(this);
     card->parceFromText(strData);
     card->setBackgroundImage(m_bgImage);
+    card->setCardBackground(m_cardBGColor);
+    card->setAdBackground(m_ADBGColor);
+    card->setSystemBackground(m_systemBGColor);
 
     connect(card, &UnitCard::requestUpdateImage, this, &MainWindow::onCurrentCardTextChanged);
 
@@ -286,5 +360,29 @@ void MainWindow::onSetBgImageButtonClick()
             card.second->setBackgroundImage(m_bgImage);
         }
         onCurrentCardTextChanged();
+    }
+}
+
+void MainWindow::onPickCardBackground()
+{
+    QColor newColor = QColorDialog::getColor(Qt::white, this, "Card background color");
+    if (newColor.isValid()){
+        setCardBGColor(newColor);
+    }
+}
+
+void MainWindow::onPickADBackground()
+{
+    QColor newColor = QColorDialog::getColor(Qt::white, this, "Card background color");
+    if (newColor.isValid()){
+        setADBGColor(newColor);
+    }
+}
+
+void MainWindow::onPickSystemBackground()
+{
+    QColor newColor = QColorDialog::getColor(Qt::white, this, "Card background color");
+    if (newColor.isValid()){
+        setSystemBGColor(newColor);
     }
 }
