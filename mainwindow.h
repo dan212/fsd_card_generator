@@ -9,6 +9,9 @@
 #include <QColorDialog>
 #include <QColor>
 #include "unitcard.h"
+#include <QDir>
+#include <QMessageBox>
+#include <QDebug>
 
 #include <set>
 

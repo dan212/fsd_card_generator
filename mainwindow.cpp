@@ -28,7 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->currentCardData, &QPlainTextEdit::textChanged,this, &MainWindow::onCurrentCardDataEdited);
 
-    connect(ui->bgAlphaSpinBox, &QSpinBox::valueChanged, this, [=](){
+    connect(ui->bgAlphaSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [=](){
         setCardBGColor(m_cardBGColor);
         setSystemBGColor(m_systemBGColor);
         setADBGColor(m_ADBGColor);
@@ -105,19 +105,25 @@ void MainWindow::generateCardsFromTextbox()
 
     QStringList individualData = inpData.split("___");
 
-    QProgressDialog pr_d = QProgressDialog("Parcing data...", "Cancel", 0 , individualData.size(), this);
-    pr_d.setWindowModality(Qt::WindowModal);
+    QProgressDialog* pr_d = new QProgressDialog("Parcing data...", "Cancel", 0 , individualData.size(), this);
+    pr_d->setWindowModality(Qt::WindowModal);
 
     int progress = 0;
     for (auto& strData : individualData){
-        if (strData.size() == 0)
+        if (strData.simplified().size() == 0){
+            progress++;
+            pr_d->setValue(progress);
             continue;
+        }
 
         if (strData.at(0) == '\n')
             strData = strData.mid(1);
 
-        if (m_textProcessed.find(strData) != m_textProcessed.end())
+        if (m_textProcessed.find(strData) != m_textProcessed.end()){
+            progress++;
+            pr_d->setValue(progress);
             continue;
+        }
 
         UnitCard* card = new UnitCard(this);
         card->parceFromText(strData);
@@ -148,9 +154,9 @@ void MainWindow::generateCardsFromTextbox()
         countSpinBox->setValue(card->getCount());
         ui->cardsLoaded->setCellWidget(m_generatedCards.size() - 1, 2, countSpinBox);
         progress++;
-        pr_d.setValue(progress);
+        pr_d->setValue(progress);
 
-        if (pr_d.wasCanceled())
+        if (pr_d->wasCanceled())
             break;
         //card->grab().save("test.png");
     }
@@ -159,12 +165,42 @@ void MainWindow::generateCardsFromTextbox()
 
 void MainWindow::generateCardSheets()
 {
+    QString saveFolderDir = QFileDialog::getExistingDirectory(this, "Select Directory to save");
+
+    if (saveFolderDir.size() == 0)
+        return;
+
+    QDir saveDir(saveFolderDir);
+    bool createdSubDirsOk = false;
+    createdSubDirsOk = saveDir.mkdir("single") || saveDir.exists("single");
+    createdSubDirsOk &= saveDir.mkdir("combined") || saveDir.exists("combined");
+
+    if (!createdSubDirsOk){
+        QMessageBox msgBox;
+        msgBox.setText("Can not create 'single' and 'combined' sub-folders.");
+        msgBox.exec();
+        return;
+    }
+
+    QString saveDirSingle = saveFolderDir + "/single";
+    QString saveDirCombined = saveFolderDir + "/combined";
+
     int totalCardCount = 0;
     for (const auto& card : m_generatedCards){
         totalCardCount += card.second->getCount();
     }
-    QProgressDialog pr_d = QProgressDialog("Generating cards...", "Cancel", 0 , totalCardCount, this);
-    pr_d.setWindowModality(Qt::WindowModal);
+    QProgressDialog* pr_d = new QProgressDialog("Generating cards...", "Cancel", 0 , totalCardCount, this);
+    pr_d->setWindowModality(Qt::WindowModal);
+
+
+    if (!m_bgImage.isNull()){ //Save background image with some card design data
+        m_bgImage.setText("System_BG", QVariant(m_systemBGColor).toString());
+        m_bgImage.setText("Card_BG", QVariant(m_cardBGColor).toString());
+        m_bgImage.setText("AD_BG", QVariant(m_ADBGColor).toString());
+        m_bgImage.setText("Alpha_bg", QVariant(ui->bgAlphaSpinBox->value()).toString());
+
+        m_bgImage.save(QString("%1/background.png").arg(saveDirSingle));
+    }
 
     totalCardCount = 0;
     QImage currentPage(318 * 3, 441 * 3, QImage::Format::Format_RGBA8888);
@@ -183,13 +219,16 @@ void MainWindow::generateCardSheets()
                 localPainter.drawImage(QPoint(318 * (currentCardCount % 3), 441 * (currentCardCount / 3)), currentCard);
                 cardText += m_generatedCards.at(index)->getText();
                 cardText += "\n___\n";
+
+                currentCard.setText("cardText", m_generatedCards.at(index)->getText() + "\n___\n");
+                currentCard.save(QString("%1/%2.png").arg(saveDirSingle).arg(m_generatedCards.at(index)->getName()));
             }
             currentCardCount++;
             totalCardCount++;
-            pr_d.setValue(totalCardCount);
+            pr_d->setValue(totalCardCount);
             if (currentCardCount == 9){
                 currentPage.setText("cardText", cardText);
-                currentPage.save(QString("page_%1.png").arg(currentPageCount));
+                currentPage.save(QString("%1/page_%2.png").arg(saveDirCombined).arg(currentPageCount));
                 currentPageCount++;
 
                 //currentPage = QImage(318 * 3, 441 * 3, QImage::Format::Format_RGBA8888);
@@ -203,7 +242,7 @@ void MainWindow::generateCardSheets()
     if (currentCardCount > 0){
         currentPage.setText("cardText", cardText);
         cardText.clear();
-        currentPage.save(QString("page_%1.png").arg(currentPageCount));
+        currentPage.save(QString("%1/page_%2.png").arg(saveDirCombined).arg(currentPageCount));
     }
 }
 
@@ -263,6 +302,11 @@ void MainWindow::onCurrentCardDataEdited()
 
         ui->cardDisplayLabel->clear();
         ui->cardDisplayLabel->setPixmap(m_currentCard->grab());
+
+        QLabel* nameLabel = dynamic_cast<QLabel*>(ui->cardsLoaded->cellWidget(ui->cardsLoaded->currentRow(), 1));
+        if (nameLabel)
+            nameLabel->setText(m_currentCard->getName());
+
         //ui->currentCardData->setPlainText(m_currentCard->getText());
     }
 }
@@ -329,21 +373,32 @@ void MainWindow::onLoadFromFilesButtonClick()
     QString totalText;
     if (files.size() > 0){
         int curProgres = 0;
-        QProgressDialog pr_d = QProgressDialog("Generating cards...", "Cancel", 0 , files.size(), this);
-        pr_d.setWindowModality(Qt::WindowModal);
+        QProgressDialog* pr_d = new QProgressDialog("Generating cards...", "Cancel", 0 , files.size(), this);
+        pr_d->setWindowModality(Qt::WindowModal);
         ui->cardsLoaded->clear();
         for (auto& card : m_generatedCards)
             card.second->deleteLater();
         m_generatedCards.clear();
 
         for (const auto& file_p : files){
-            QImage sheet = QImage(file_p);
-            if (!sheet.isNull()){
-                QString text = sheet.text("cardText");
-                totalText.append(text);
+            if (file_p.endsWith("background.png")){
+                m_bgImage = QImage(file_p);
+                m_systemBGColor = QVariant(m_bgImage.text("System_BG")).value<QColor>();
+                m_cardBGColor = QVariant(m_bgImage.text("Card_BG")).value<QColor>();
+                m_ADBGColor = QVariant(m_bgImage.text("AD_BG")).value<QColor>();
+                ui->bgAlphaSpinBox->setValue(m_bgImage.text("Alpha_bg").toInt());
+                curProgres++;
+                pr_d->setValue(curProgres);
             }
-            curProgres++;
-            pr_d.setValue(curProgres);
+            else{
+                QImage sheet = QImage(file_p);
+                if (!sheet.isNull()){
+                    QString text = sheet.text("cardText");
+                    totalText.append(text);
+                }
+                curProgres++;
+                pr_d->setValue(curProgres);
+            }
         }
         ui->plainTextEdit->setPlainText(totalText);
         generateCardsFromTextbox();
