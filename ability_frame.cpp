@@ -66,6 +66,11 @@ void ability_frame::setADValues(std::vector<std::pair<int, int> > _ads)
         adCount++;
     }
     setMinimumHeight(15 + 2 + ui->adBoxLayout->rowCount() * 32);
+
+    //if (adCount == 0){
+    //    //ui->gridLayout->removeWidget(ui->Descr);
+    //    ui->gridLayout->addWidget(ui->Descr, 1, 0, 1, 2);
+    //}
 }
 
 bool ability_frame::makeFromString(QString _inp)

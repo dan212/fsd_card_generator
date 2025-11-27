@@ -144,34 +144,38 @@ void UnitCard::parceFromText(QString _data)
             QStringList damageLines = line.split('[');
             for (int j = 1; j < damageLines.size(); ++j){
                 QString dl = damageLines.at(j);
-                int first = dl.mid(0,1).toInt();
-                int last = dl.mid(dl.indexOf(']')-1, 1).toInt();
-                QString damageText = dl.mid(dl.indexOf(']') + 1);
-                damageText.remove(':');
-                damageText.remove(',');
+                bool diceReadOk_f = true;
+                bool diceReadOk_l = true;
+                int first = dl.mid(0,1).toInt(&diceReadOk_f);
+                int last = dl.mid(dl.indexOf(']')-1, 1).toInt(&diceReadOk_l);
+                if (diceReadOk_f && diceReadOk_l){
+                    QString damageText = dl.mid(dl.indexOf(']') + 1);
+                    damageText.remove(':');
+                    damageText.remove(',');
 
-                bool isGreen = false;
-                bool isRed = false;
-                if (damageText.toLower().contains("green") || damageText.toLower().contains("pin")){
-                    isGreen = true;
-                    damageText.remove("green", Qt::CaseInsensitive);
-                }
-                if (damageText.toLower().contains("death") || damageText.toLower().contains("dead")){
-                    isRed = true;
-                }
+                    bool isGreen = false;
+                    bool isRed = false;
+                    if (damageText.toLower().contains("green") || damageText.toLower().contains("pin")){
+                        isGreen = true;
+                        damageText.remove("green", Qt::CaseInsensitive);
+                    }
+                    if (damageText.toLower().contains("death") || damageText.toLower().contains("dead")){
+                        isRed = true;
+                    }
 
-                QLabel* damageLabel = new QLabel(damageText, this);
-                damageLabel->setLineWidth(1);
-                damageLabel->setFrameStyle(QFrame::Panel);
-                damageLabel->setAlignment(Qt::AlignCenter);
-                if (isGreen){
-                    damageLabel->setStyleSheet("border: 2px dashed gray");
+                    QLabel* damageLabel = new QLabel(damageText, this);
+                    damageLabel->setLineWidth(1);
+                    damageLabel->setFrameStyle(QFrame::Panel);
+                    damageLabel->setAlignment(Qt::AlignCenter);
+                    if (isGreen){
+                        damageLabel->setStyleSheet("border: 2px dashed gray");
+                    }
+                    if (isRed){
+                        damageLabel->setStyleSheet("border: 3px ridge black");
+                    }
+                    ui->damageLayout->addWidget(damageLabel, 1, first - 1, 1, last - first + 1);
+                    m_damageValueLabels.push_back(damageLabel);
                 }
-                if (isRed){
-                    damageLabel->setStyleSheet("border: 3px ridge black");
-                }
-                ui->damageLayout->addWidget(damageLabel, 1, first - 1, 1, last - first + 1);
-                m_damageValueLabels.push_back(damageLabel);
             }
         } else if (line.toLower().startsWith("cmd")){
             if (isUnit){
@@ -208,13 +212,54 @@ void UnitCard::parceFromText(QString _data)
             int cc = line.mid(line.lastIndexOf(":") + 1).toInt(&isOk);
             if (isOk)
                 setCount(cc);
-        } else{ //Other text
+        } else if (line.toLower().startsWith("m_stat")){
+            if (isUnit){
+                QStringList baseStatLine = line.mid(line.toLower().indexOf("m_stat") + sizeof("m_stat")).split(QRegularExpression("[,|:|;]"));
+                if (baseStatLine.size() >= 4){
+                    QString cmd = baseStatLine.at(0).simplified().mid(baseStatLine.at(0).simplified().indexOf(' '));
+                    QString def = baseStatLine.at(1).simplified().mid(baseStatLine.at(1).simplified().indexOf(' '));
+                    QString save = baseStatLine.at(2).simplified().mid(baseStatLine.at(2).simplified().indexOf(' '));
+                    QString move = baseStatLine.at(3).simplified().mid(baseStatLine.at(3).simplified().indexOf(' '));
+
+                    QString cmd_lbl = baseStatLine.at(0).simplified().left(baseStatLine.at(0).simplified().indexOf(' '));
+                    QString def_lbl = baseStatLine.at(1).simplified().left(baseStatLine.at(1).simplified().indexOf(' '));
+                    QString save_lbl = baseStatLine.at(2).simplified().left(baseStatLine.at(2).simplified().indexOf(' '));
+                    QString move_lbl = baseStatLine.at(3).simplified().left(baseStatLine.at(3).simplified().indexOf(' '));
+
+                    ui->label_cmd->setText(cmd);
+                    ui->label_def->setText(def);
+                    ui->label_save->setText(save);
+                    ui->label_move->setText(move);
+
+                    ui->mainDataFrame->setVisible(true);
+
+                    ui->label->setText(cmd_lbl);
+                    ui->label_2->setText(def_lbl);
+                    ui->label_3->setText(save_lbl);
+                    ui->label_4->setText(move_lbl);
+
+                    ui->label->setVisible(true);
+                    ui->label_2->setVisible(true);
+                    ui->label_3->setVisible(true);
+                    ui->label_4->setVisible(true);
+
+                    ui->label_cmd->setVisible(true);
+                    ui->label_def->setVisible(true);
+                    ui->label_save->setVisible(true);
+                    ui->label_move->setVisible(true);
+                }
+            }
+        }
+        else{ //Other text
             miscText += line + '\n' + "<br>";
         }
     }
     ui->miscText->setText(miscText);
     if (miscText.size() <= 1){
         ui->miscText->setVisible(false);
+    }
+    else{
+        ui->miscText->setVisible(true);
     }
 
     if (m_abilities.size() > 0){
