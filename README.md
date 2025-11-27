@@ -19,6 +19,10 @@ If card is a unit, stat line is expected as well
 Cmd <X>; Def <Y>+; Save d<Z>(<N>); <M>DU
 ```
 Supported separators are `',', ':'` and `';'`
+Alternatively, it's possible to fill stati line with custom labels and data, using `m_stat` prefix:
+```
+m_stat Speed 35cm: Save 4+/-/-: CC 3+: FF 5+
+```
 
 Systems are described as follows
 ```
