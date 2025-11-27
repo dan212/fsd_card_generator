@@ -51,5 +51,5 @@ After selecting card, it's text will be displayed in **"Current card text"** zon
 By default, generated cards have white background. Image background can be set with **"Set background image"** button, which will apply selected image to all cards. Image will be automatically scaled to card size by streching.
 
 ## Card sheet generation.
-Pressing **"Generate cards"** will generate card sheets with each card having **"Count"** amount of copies. All card data is recorded in to generated sheets. Images will be saved in start up folder.
+Pressing **"Generate cards"** will generate card sheets with each card having **"Count"** amount of copies. All card data is recorded in to generated sheets. Images will be saved in folder, selected in file system dialogue. When saving cards, 2 sub folders will be generated - for single cards, and for card sheets.
 To load text data from sheets, use "Load from PNG sheets" button and select all pages to load. This will clean any previous data in application and generate card list again. Note that background card image is not saved in the sheets, and need to be selected again between application runs.
