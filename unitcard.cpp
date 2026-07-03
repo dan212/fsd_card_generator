@@ -103,6 +103,7 @@ void UnitCard::parceFromText(QString _data)
                 int findPts = nameParts.at(1).indexOf("pts");
                 int ptsVal = ptsStr.simplified().left(ptsStr.simplified().indexOf(' ')).toInt();
                 ui->ptsCost->setText(QString("%1 pts   ").arg(ptsVal));
+                pointValue = ptsVal;
             }
             ui->unitName->setText(name);
 
@@ -155,7 +156,7 @@ void UnitCard::parceFromText(QString _data)
 
                     bool isGreen = false;
                     bool isRed = false;
-                    if (damageText.toLower().contains("green") || damageText.toLower().contains("pin")){
+                    if (damageText.toLower().contains("green")){
                         isGreen = true;
                         damageText.remove("green", Qt::CaseInsensitive);
                     }

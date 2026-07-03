@@ -32,6 +32,7 @@ private:
     QString name;
     int index = 0;
     int cardCount = 1;
+    int pointValue = 0;
     bool updateNeeded = false;
 
     QLabel *bg_image = nullptr;
@@ -46,6 +47,7 @@ public:
     QString getText() {return cardText;};
     QString getName() {return name;};
     int getCount() {return cardCount;};
+    int getPoints() {return pointValue;}
     void setCount(int _count);
 
     void addSystemStump();

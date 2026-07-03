@@ -153,6 +153,7 @@ void MainWindow::generateCardsFromTextbox()
         QSpinBox *countSpinBox = new QSpinBox(ui->cardsLoaded );
         countSpinBox->setValue(card->getCount());
         ui->cardsLoaded->setCellWidget(m_generatedCards.size() - 1, 2, countSpinBox);
+        connect(countSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::onRecalcCardCount);
         progress++;
         pr_d->setValue(progress);
 
@@ -200,6 +201,19 @@ void MainWindow::generateCardSheets()
         m_bgImage.setText("Alpha_bg", QVariant(ui->bgAlphaSpinBox->value()).toString());
 
         m_bgImage.save(QString("%1/background.png").arg(saveDirSingle));
+
+        QImage currentPage(318 * 3, 441 * 3, QImage::Format::Format_RGBA8888);
+        QPainter localPainter(&currentPage);
+        localPainter.fillRect(0, 0, 318 * 3, 441 * 3, Qt::GlobalColor::white);
+        for (int i = 0; i < 9; ++i){
+            localPainter.drawImage(QPoint(318 * (i % 3), 441 * (i / 3)), m_bgImage.scaled(318, 441));
+        }
+        currentPage.setText("System_BG", QVariant(m_systemBGColor).toString());
+        currentPage.setText("Card_BG", QVariant(m_cardBGColor).toString());
+        currentPage.setText("AD_BG", QVariant(m_ADBGColor).toString());
+        currentPage.setText("Alpha_bg", QVariant(ui->bgAlphaSpinBox->value()).toString());
+
+        currentPage.save(QString("%1/background.png").arg(saveDirCombined));
     }
 
     totalCardCount = 0;
@@ -278,6 +292,7 @@ void MainWindow::removeCard()
         ui->currentCardData->clear();
         m_currentCard = nullptr;
     }
+    onRecalcCardCount();
 }
 
 void MainWindow::onTableCellClick(int _row, int _column)
@@ -403,6 +418,7 @@ void MainWindow::onLoadFromFilesButtonClick()
         ui->plainTextEdit->setPlainText(totalText);
         generateCardsFromTextbox();
     }
+    onRecalcCardCount();
 }
 
 void MainWindow::onSetBgImageButtonClick()
@@ -440,4 +456,24 @@ void MainWindow::onPickSystemBackground()
     if (newColor.isValid()){
         setSystemBGColor(newColor);
     }
+}
+
+void MainWindow::onRecalcCardCount()
+{
+    for (int i = 0; i < ui->cardsLoaded->rowCount(); i++){
+        int index = ui->cardsLoaded->cellWidget(i, 0)->property("index").toInt();
+        int count = dynamic_cast<QSpinBox*>( ui->cardsLoaded->cellWidget(i, 2))->value();
+        m_generatedCards.at(index)->setCount(count);
+    }
+    int totalCardCount;
+    int totalPoints;
+    for (auto& card : m_generatedCards){
+        totalCardCount+= card.second->getCount();
+        totalPoints += card.second->getPoints() * card.second->getCount();
+    }
+    QString placeText = "No data";
+    if (totalCardCount> 0){
+        placeText = QString("Cards: %1(%2), Sum: %3").arg(totalCardCount).arg((float)totalCardCount/9.0,2).arg(totalPoints);
+    }
+    ui->label_cardCount->setText(placeText);
 }

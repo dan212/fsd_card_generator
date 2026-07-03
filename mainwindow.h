@@ -69,5 +69,7 @@ public slots:
     void onPickCardBackground();
     void onPickADBackground();
     void onPickSystemBackground();
+
+    void onRecalcCardCount();
 };
 #endif // MAINWINDOW_H
